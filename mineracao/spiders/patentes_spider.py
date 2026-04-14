@@ -14,37 +14,43 @@ def salvar_no_banco(cnpj_extraido, razao_social_extraida, numero_registro, titul
 
 class PatentesSpider(scrapy.Spider):
     name = 'patentes'
-    start_urls = ['https://example.com']
+    start_urls = ['https://pt.wikipedia.org/wiki/Inova%C3%A7%C3%A3o_tecnol%C3%B3gica']
 
     async def parse(self, response):
-        documento = "A empresa Inovacao Tech, CNPJ 12345678000195, registrou a patente numero BR102030 chamada Algoritmo de Otimizacao Quantica."
+        paragrafos = response.css('p::text').getall()
 
-        cnpj_match = re.search(r'\d{14}', documento)
-        cnpj = cnpj_match.group(0) if cnpj_match else "00000000000000"
-
-        patente_match = re.search(r'BR\d+', documento)
-        numero_patente = patente_match.group(0) if patente_match else "Sem registro"
-
-        titulo_match = re.search(r'chamada\s+(.*)\.', documento + ".")
-        titulo = titulo_match.group(1).strip() if titulo_match else "Sem título"
-
-        doc = nlp(documento)
-        razao_social = "Desconhecida"
-
-        for ent in doc.ents:
-            if ent.label_ in ['ORG', 'MISC', 'PER']:
-                razao_social = ent.text
-                break
+        for paragrafo in paragrafos:
+            paragrafo = paragrafo.strip()
         
-        if razao_social == "Desconhecida":
-            empresa_match = re.search(r'empresa\s+([^,]+)', documento)
-            if empresa_match:
-                razao_social = empresa_match.group(1).strip()
-        
+            if len(paragrafo) < 40:
+                continue
 
-        self.logger.info(f"Dados extraídos - Empresa: {razao_social} | CNPJ: {cnpj} | Patente: {numero_patente}")
+            cnpj_match = re.search(r'\d{14}', paragrafo)
+            cnpj = cnpj_match.group(0) if cnpj_match else "00000000000000"
 
-        await salvar_no_banco(cnpj_extraido=cnpj, razao_social_extraida=razao_social, numero_registro=numero_patente, titulo_patente=titulo, resumo_texto=documento)
+            patente_match = re.search(r'BR\d+', paragrafo)
+            numero_patente = patente_match.group(0) if patente_match else "Sem registro"
+
+            titulo_match = re.search(r'chamada\s+(.*)\.', paragrafo + ".")
+            titulo = titulo_match.group(1).strip() if titulo_match else "Sem título"
+
+            doc = nlp(paragrafo)
+            razao_social = "Desconhecida"
+
+            for ent in doc.ents:
+                if ent.label_ in ['ORG', 'MISC', 'PER']:
+                    razao_social = ent.text
+                    break
+            
+            if razao_social == "Desconhecida":
+                empresa_match = re.search(r'empresa\s+([^,]+)', paragrafo)
+                if empresa_match:
+                    razao_social = empresa_match.group(1).strip()
+            
+
+            self.logger.info(f"Dados extraídos - Empresa: {razao_social} | CNPJ: {cnpj} | Patente: {numero_patente}")
+
+            await salvar_no_banco(cnpj_extraido=cnpj, razao_social_extraida=razao_social, numero_registro=numero_patente, titulo_patente=titulo, resumo_texto=paragrafo)
 
         self.logger.info("Processo de inserção no banco via ORM finalizado.")
     

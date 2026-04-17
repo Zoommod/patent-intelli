@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_celery_results',
     'mineracao',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [

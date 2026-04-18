@@ -1,6 +1,9 @@
 import scrapy
 import re
 import spacy
+import pymongo
+import datetime
+import uuid
 from asgiref.sync import sync_to_async
 from mineracao.models import Empresa, Patente
 
@@ -16,6 +19,12 @@ class PatentesSpider(scrapy.Spider):
     name = 'patentes'
     start_urls = ['https://pt.wikipedia.org/wiki/Inova%C3%A7%C3%A3o_tecnol%C3%B3gica']
 
+    def __init__(self, *args, **kwargs):
+        super(PatentesSpider, self).__init__(*args, **kwargs)
+        self.mongo_client = pymongo.MongoClient('mongodb://localhost:27017/')
+        self.db = self.mongo_client['datalake']
+        self.collection = self.db['patentes_raw']
+
     async def parse(self, response):
         paragrafos = response.css('p::text').getall()
 
@@ -24,6 +33,13 @@ class PatentesSpider(scrapy.Spider):
         
             if len(paragrafo) < 40:
                 continue
+
+            documento_bruto = {
+                'html_bruto': paragrafo,
+                'url_origem': response.url,
+                'data_extracao': datetime.datetime.now()
+            }
+            self.collection.insert_one(documento_bruto)
 
             cnpj_match = re.search(r'\d{14}', paragrafo)
             cnpj = cnpj_match.group(0) if cnpj_match else "00000000000000"
@@ -53,4 +69,3 @@ class PatentesSpider(scrapy.Spider):
             await salvar_no_banco(cnpj_extraido=cnpj, razao_social_extraida=razao_social, numero_registro=numero_patente, titulo_patente=titulo, resumo_texto=paragrafo)
 
         self.logger.info("Processo de inserção no banco via ORM finalizado.")
-    

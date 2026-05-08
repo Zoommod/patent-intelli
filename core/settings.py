@@ -113,6 +113,6 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_BEAT_SCHEDULE = {
     'coletar_patentes_agendado': {
         'task': 'mineracao.tasks.task_coletar_patentes',
-        'schedule': crontab(minute='*/1'),
+        'schedule': crontab(minute=0, hour=3),  # Diariamente às 3h da manhã (produção)
     },
 }
